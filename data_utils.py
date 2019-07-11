@@ -46,7 +46,7 @@ class DataLoader:
     :param target_size: tuple of integers. Dimensions to resize input images to.
     """
 
-    def __init__(self, data_dir, model_dir, output_dim, img_mode='grayscale', is_train=False, target_size=(224, 224)):
+    def __init__(self, data_dir, model_dir, output_dim, img_mode, target_size=(224, 224), is_train=False):
         self.data_dir = data_dir
         self.model_dir = model_dir
         self.output_dim = output_dim

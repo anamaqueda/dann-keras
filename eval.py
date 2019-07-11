@@ -31,7 +31,8 @@ def _main():
     output_dim = 10
 
     # Generate testing data
-    test_data = data_utils.DataLoader(FLAGS.test_dir, output_dim, FLAGS.img_mode, (FLAGS.img_height, FLAGS.img_width))
+    test_data = data_utils.DataLoader(FLAGS.test_dir, FLAGS.model_dir, output_dim, FLAGS.img_mode,
+                                      target_size=(FLAGS.img_height, FLAGS.img_width))
     
     # Iterator generating testing data batch by batch
     test_generator = data_utils.batch_generator(test_data, output_dim, FLAGS.batch_size)

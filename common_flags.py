@@ -2,6 +2,9 @@ import gflags
 
 FLAGS = gflags.FLAGS
 
+# Random seed
+gflags.DEFINE_bool('random_seed', True, 'Random seed')
+
 # Input data
 gflags.DEFINE_integer('img_width', 28, 'Target Image Width')
 gflags.DEFINE_integer('img_height', 28, 'Target Image Height')

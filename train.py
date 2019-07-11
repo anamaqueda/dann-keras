@@ -2,6 +2,7 @@ import numpy as np
 import os
 import sys
 import gflags
+import tensorflow as tf
 
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.optimizers import SGD
@@ -13,12 +14,11 @@ import utils
 import data_utils
 import log_utils
 from common_flags import FLAGS
-import pdb
 
 
 # Set GPU 1 for training
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
 # Constants
 TRAIN_PHASE = 1
@@ -122,6 +122,14 @@ def train_model(train_data, val_data, output_dim, model, initial_epoch):
 
 
 def _main():
+    # Set random seed
+    if FLAGS.random_seed:
+        seed = np.random.randint(0, 2 * 31 - 1)
+    else:
+        seed = 5
+    np.random.seed(seed)
+    tf.set_random_seed(seed)
+
     # Set training phase
     K.set_learning_phase(TRAIN_PHASE)
 
@@ -141,11 +149,11 @@ def _main():
     output_dim = 10
 
     # Generate training data
-    train_data = data_utils.DataLoader(FLAGS.train_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
-                                       is_train=True, target_size=(FLAGS.img_height, FLAGS.img_width))
-    
+    train_data = data_utils.DataLoader(FLAGS.train_dir, FLAGS.model_dir, output_dim, FLAGS.img_mode,
+                                       target_size=(FLAGS.img_height, FLAGS.img_width), is_train=True)
+
     # Generate validation data
-    val_data = data_utils.DataLoader(FLAGS.val_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
+    val_data = data_utils.DataLoader(FLAGS.val_dir, FLAGS.model_dir, output_dim, FLAGS.img_mode,
                                      target_size=(FLAGS.img_height, FLAGS.img_width))
     val_data.pixel_mean = train_data.pixel_mean
 
