@@ -13,8 +13,10 @@ import utils
 import data_utils
 import log_utils
 from common_flags import FLAGS
+import pdb
 
-# Set GPU 1 (Titan V) for training
+
+# Set GPU 1 for training
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'
 
@@ -79,15 +81,11 @@ def train_model(train_data, val_data, output_dim, model, initial_epoch):
     :param model: a Model instance to be trained.
     :param initial_epoch: epoch from which training starts.
     """
-    # Iterator object containing training data to be generated batch by batch
+    # Iterator generating training data batch by batch
     train_generator = data_utils.batch_generator(train_data, output_dim, FLAGS.batch_size, shuffle=True)
 
-    # Iterator object containing validation data to be generated batch by batch
+    # Iterator generating validation data batch by batch
     val_generator = data_utils.batch_generator(val_data, output_dim, FLAGS.batch_size, shuffle=True)
-
-    # Save model if domain loss increases
-    #model.dom_loss = K.variable(0.0)
-    model.total_steps = K.variable(FLAGS.epochs*(train_data.num_source + train_data.num_target)/(FLAGS.batch_size*2))
 
     # Configure training process
     model.compile(loss=[custom_categorical_crossentropy, custom_binary_crossentropy], optimizer=SGD(momentum=0.9))
@@ -102,11 +100,14 @@ def train_model(train_data, val_data, output_dim, model, initial_epoch):
     worst_dc_model = ModelCheckpoint(filepath=dc_weights_path, monitor='val_activation_7_loss',
                                      save_best_only=True, mode='max', save_weights_only=True)
 
+    # Number of total steps
+    total_steps = FLAGS.epochs * (train_data.num_source + train_data.num_target) / (FLAGS.batch_size * 2)
+
     # Customized callback
     # - Save logs of training and validation losses.
     # - Modify hp_lambda value
     logz.configure_output_dir(FLAGS.model_dir)
-    save_model_and_loss = log_utils.MyCallback(filepath=FLAGS.experiment_rootdir, period=FLAGS.log_rate)
+    save_model_and_loss = log_utils.MyCallback(FLAGS.model_dir, FLAGS.log_rate, FLAGS.batch_size, total_steps)
 
     # Train model
     steps_per_epoch = int(np.ceil((train_data.num_source + train_data.num_target) / (FLAGS.batch_size*2)))
@@ -142,7 +143,7 @@ def _main():
     # Generate training data
     train_data = data_utils.DataLoader(FLAGS.train_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
                                        is_train=True, target_size=(FLAGS.img_height, FLAGS.img_width))
-
+    pdb.set_trace()
     # Generate validation data
     val_data = data_utils.DataLoader(FLAGS.val_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
                                      target_size=(FLAGS.img_height, FLAGS.img_width))

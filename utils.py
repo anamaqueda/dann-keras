@@ -3,14 +3,13 @@ import json
 import os
 import matplotlib.pyplot as plt
 import itertools
-import shutil
-import pickle
-from sklearn.metrics import confusion_matrix, precision_recall_curve, average_precision_score
+from sklearn.metrics import confusion_matrix
 
 from keras.utils.generic_utils import Progbar
 from keras.models import model_from_json
 
 
+# Constants
 COLORS = ['g', 'r', 'y', 'c', 'k', 'm', 'pink', 'darkgreen', 'orange', 'beige']
 DECISION_THR = [0.99, 0.95, 0.90, 0.80, 0.70, 0.50, 0.30, 0.15, 0.05]
 
@@ -31,8 +30,8 @@ def compute_predictions_and_gt(model, generator, steps, verbose=0):
     steps_done = 0
     all_lp_pred = []  # LP predictions
     all_lp_gt = []  # LP ground truth
-    all_dc_pred = [] # DC predictions
-    all_dc_gt = [] # DC ground truth
+    all_dc_pred = []  # DC predictions
+    all_dc_gt = []  # DC ground truth
 
     if verbose == 1:
         progbar = Progbar(target=steps)
@@ -155,37 +154,7 @@ def plot_confusion_matrix(real_labels, pred_labels, classes, output_path, normal
     plt.savefig(os.path.join(output_path, name))
 
 
-def plot_pr_curve(pred_probabilities, true_labels, classes, output_path):
-    """
-    Compute precision and recall for a set of thresholds.
-    :param pred_probabilities: Predicted probabilities
-    :param true_labels: Real labels
-    :param output_path: Directory where saving the curve in PNG format
-    Otherwise, they are computed for a set of threshold values.
-    :return: Precision-recall curves for every category
-    """
-
-    # Precision-recall figure
-    plt.figure(figsize=(10, 5))
-    plt.title('Precision-recall curve')
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim(0.0, 1.05)
-
-    for i in range(true_labels.shape[1]):
-        precision, recall, thresholds = precision_recall_curve(true_labels[:, i], pred_probabilities[:, i])
-        average_precision = average_precision_score(true_labels[:, i], pred_probabilities[:, i])
-        print('Average precision score for ' + CLASSES[i] + ' class: {0:0.2f}'.format(average_precision))
-
-        # Plot per category
-        plt.plot(recall, precision, '-o', color=COLORS[i], label=classes[i])
-        plt.tight_layout()
-
-    plt.legend()
-    plt.savefig(os.path.join(output_path, 'PR-curve.png'))
-
-
-def plot_custom_pr_curve(pred_probabilities, true_labels, output_path, classes, name="pr-curve.png"):
+def plot_pr_curve(pred_probabilities, true_labels, output_path, classes, name="pr-curve.png"):
     """
     Compute precision and recall for a set of thresholds.
     :param pred_probabilities: Predicted probabilities
@@ -235,53 +204,6 @@ def plot_custom_pr_curve(pred_probabilities, true_labels, output_path, classes, 
     plt.legend()
     plt.grid(True)
     plt.savefig(os.path.join(output_path, name))
-
-
-def compute_errors(directory, filenames, pred_probabilities, classes, output_path):
-    # Compute misclassified samples for yellow category only
-    pred_labels = np.argmax(pred_probabilities, axis=1)
-    pred_yellow_labels = pred_labels[-100:]
-    filenames = filenames[-100:]
-
-    # Save correctly classified yellow samples
-    correct_path = os.path.join(output_path, 'correct')
-    if not os.path.isdir(correct_path):
-        os.makedirs(correct_path)
-
-    correct_samples = []
-    correct_categories = []
-    incorrect_samples = []
-    incorrect_categories = []
-
-    # Save misclassified yellow samples
-    incorrect_path = os.path.join(output_path, 'incorrect')
-    if not os.path.isdir(incorrect_path):
-        os.makedirs(incorrect_path)
-
-    tp = np.where(pred_yellow_labels == 2)[0].tolist()
-    for ind in range(0, len(filenames)):
-        cat = pred_yellow_labels[ind]
-        src = os.path.join(directory, filenames[ind])
-        if ind in tp:
-            correct_samples.append(src)
-            correct_categories.append(classes[cat])
-            dst = os.path.join(correct_path, 'pred_' + classes[cat] + '_' + os.path.basename(filenames[ind]))
-            shutil.copy2(src, dst)
-        else:
-            incorrect_samples.append(src)
-            incorrect_categories.append(classes[cat])
-            dst = os.path.join(incorrect_path, 'pred_' + classes[cat] + '_' + os.path.basename(filenames[ind]))
-            shutil.copy2(src, dst)
-
-    # Store correct samples list as binary data stream
-    fname_correct = os.path.join(correct_path, 'correct_samples.pkl')
-    with open(fname_correct, 'wb') as f_correct:
-        pickle.dump([correct_samples, correct_categories], f_correct)
-
-    # Store incorrect samples list as binary data stream
-    fname_incorrect = os.path.join(incorrect_path, 'incorrect_samples.pkl')
-    with open(fname_incorrect, 'wb') as f_incorrect:
-        pickle.dump([incorrect_samples, incorrect_categories], f_incorrect)
 
 
 def compute_highest_classification_errors(predictions, ground_truth, n_errors=20):

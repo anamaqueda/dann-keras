@@ -60,11 +60,11 @@ class DataLoader:
         # Valid image formats
         self.formats = {'png', 'jpg'}
 
-        # File names of all samples/images under root_folder.
+        # File names of all samples/images under 'data_dir'.
         self.source_filenames = []
         self.target_filenames = []
 
-        # Category and domain labels (ground truth) of all samples/images under root_folder.
+        # Category and domain labels (ground truth) of all samples/images under 'data_dir'.
         self.source_labels = []
         self.target_labels = []
 
@@ -81,10 +81,11 @@ class DataLoader:
                 for category in sorted(os.listdir(os.path.join(data_dir, domain))):
                     if os.path.isdir(os.path.join(data_dir, domain, category)):
                         categories.append(category)
-                # Check if number of classes is the same as specified in output_dim for every domain
+                # Check if number of classes is the same as specified in 'output_dim' for every domain
                 assert len(categories) == self.output_dim, \
                     'Dimension of LP output is {} but {} classes were found.'.format(self.output_dim, len(categories))
-                categories = []
+                if domain == 'source':
+                    categories = []
 
         # Check if pixel mean is already computed
         self.pixel_mean = 0
