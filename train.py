@@ -18,7 +18,7 @@ import pdb
 
 # Set GPU 1 for training
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 # Constants
 TRAIN_PHASE = 1
@@ -143,7 +143,7 @@ def _main():
     # Generate training data
     train_data = data_utils.DataLoader(FLAGS.train_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
                                        is_train=True, target_size=(FLAGS.img_height, FLAGS.img_width))
-    pdb.set_trace()
+    
     # Generate validation data
     val_data = data_utils.DataLoader(FLAGS.val_dir, FLAGS.model_dir, output_dim, img_mode=FLAGS.img_mode,
                                      target_size=(FLAGS.img_height, FLAGS.img_width))
