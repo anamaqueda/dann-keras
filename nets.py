@@ -54,12 +54,7 @@ class GradientReversal(Layer):
 
 def dann_mnist(img_width, img_height, img_channels, output_dim):
     """
-    Domain Adaptation Neural Network (DANN) for domain adaptation between real and synthetic MNIST datasets.
-    :param img_width: target image width.
-    :param img_height: target image height.
-    :param img_channels: target image channels.
-    :param output_dim: output dimension of the label predictor (number of classes).
-    :return: a Model instance.
+    DANN for domain adaptation between real and synthetic MNIST datasets.
     """
     # Input
     img_input = Input(shape=(img_height, img_width, img_channels))

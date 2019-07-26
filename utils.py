@@ -14,12 +14,10 @@ COLORS = ['g', 'r', 'y', 'c', 'k', 'm', 'pink', 'darkgreen', 'orange', 'beige']
 DECISION_THR = [0.99, 0.95, 0.90, 0.80, 0.70, 0.50, 0.30, 0.15, 0.05]
 
 
-def compute_predictions_and_gt(model, generator, steps, verbose=0):
+def compute_pred_and_gt(model, generator, steps, verbose=0):
     """
     Generate predictions and associated ground truth for the input samples from a data generator. The generator should
     return the same kind of data as accepted by 'predict_on_batch'.
-
-    Function adapted from Keras 'predict_generator'.
 
     :param model: Model instance containing a trained model.
     :param generator: Generator yielding batches of input samples.
@@ -28,10 +26,10 @@ def compute_predictions_and_gt(model, generator, steps, verbose=0):
     :return: numpy arrays of predictions and associated ground truth.
     """
     steps_done = 0
-    all_lp_pred = []  # LP predictions
-    all_lp_gt = []  # LP ground truth
-    all_dc_pred = []  # DC predictions
-    all_dc_gt = []  # DC ground truth
+    all_lp_pred = None  # LP predictions
+    all_lp_gt = None  # LP ground truth
+    all_dc_pred = None  # DC predictions
+    all_dc_gt = None  # DC ground truth
 
     if verbose == 1:
         progbar = Progbar(target=steps)
@@ -42,21 +40,24 @@ def compute_predictions_and_gt(model, generator, steps, verbose=0):
         if isinstance(generator_output, tuple):
             if len(generator_output) == 2:
                 x, gt_label = generator_output
-            elif len(generator_output) == 3:
-                x, gt_label, _ = generator_output
             else:
-                raise ValueError('output of generator should be a tuple `(x, y, sample_weight)` or `(x, y)`. Found: ' +
-                                 str(generator_output))
+                raise ValueError('Output of generator should be a tuple `(x, y)`. Found: ' + str(generator_output))
         else:
             raise ValueError('Output not valid for current evaluation')
 
         # Forward pass on testing data
         outs = model.predict_on_batch(x)
 
-        all_lp_pred = np.concatenate((all_lp_pred, np.squeeze(outs[0])), axis=0)
-        all_lp_gt = np.concatenate((all_lp_gt, gt_label[0]), axis=0)
-        all_dc_pred = np.concatenate((all_dc_pred, np.squeeze(outs[1])), axis=0)
-        all_dc_gt = np.concatenate((all_dc_gt, gt_label[1]), axis=0)
+        if steps_done == 0:
+            all_lp_pred = outs[0]
+            all_lp_gt = gt_label[0]
+            all_dc_pred = outs[1]
+            all_dc_gt = gt_label[1]
+        else:
+            all_lp_pred = np.concatenate((all_lp_pred, outs[0]), axis=0)
+            all_lp_gt = np.concatenate((all_lp_gt, gt_label[0]), axis=0)
+            all_dc_pred = np.concatenate((all_dc_pred, outs[1]), axis=0)
+            all_dc_gt = np.concatenate((all_dc_gt, gt_label[1]), axis=0)
 
         steps_done += 1
         if verbose == 1:
@@ -68,8 +69,6 @@ def compute_predictions_and_gt(model, generator, steps, verbose=0):
 def model_to_json(model, json_model_path):
     """
     Serialize a model into JSON.
-    :param model: Model instance containing a trained model.
-    :param json_model_path: Directory where saving the model in JSON format.
     """
     model_json = model.to_json()
     with open(json_model_path, "w") as f:
@@ -79,8 +78,6 @@ def model_to_json(model, json_model_path):
 def json_to_model(json_model_path, custom_objects=None):
     """
     Serialize JSON into a model.
-    :param json_model_path: Directory where JSON model is.
-    :return: A model instance containing a trained model.
     """
     with open(json_model_path, 'r') as json_file:
         loaded_model_json = json_file.read()
@@ -91,8 +88,6 @@ def json_to_model(json_model_path, custom_objects=None):
 def write_to_file(dictionary, fname):
     """
     Writes everything is in a dictionary in JSON format.
-    :param dictionary: Dictionary to be saved.
-    :param fname: Name of the JSON file.
     """
     with open(fname, "w") as f:
         json.dump(dictionary, f)
@@ -102,26 +97,59 @@ def write_to_file(dictionary, fname):
 def plot_loss(path_to_log):
     """
     Read log life and plot losses.
-    :param path_to_log: Directory where log file is.
     """
     # Read log file
-    log_file = os.path.join(path_to_log, "log.txt")
     try:
-        log = np.genfromtxt(log_file, delimiter='\t', dtype=None, names=True)
+        with open(os.path.join(path_to_log, 'logs.json'), 'r') as log_file:
+            log = json.load(log_file)
     except:
         raise IOError("Log file not found")
 
-    train_loss = log['label_predictor']
-    val_loss = log['domain_classifier']
-    timesteps = list(range(train_loss.shape[0]))
-    
-    # Plot losses
-    plt.plot(timesteps, train_loss, 'r--', timesteps, val_loss, 'b--')
-    plt.legend(["Label predictor", "Domain classifier"])
+    # Extract training and validation logs
+    train_logs = log['train']
+    val_logs = log['val']
+    timesteps = range(len(train_logs['lp_loss']))
+
+    # Plot training losses
+    plt.figure()
+    plt.plot(timesteps, train_logs['lp_loss'], 'r-', train_logs['dc_loss'], 'b-', train_logs['total_loss'], 'g-')
+    plt.legend(["LP", "DC", "Total"])
     plt.ylabel('Loss')
     plt.xlabel('Epochs')
-    plt.savefig(os.path.join(path_to_log, "log.png"))
-    
+    plt.title('Training loss')
+    plt.grid(True)
+    plt.savefig(os.path.join(path_to_log, "train_loss.png"))
+
+    # Plot training accuracies
+    plt.figure()
+    plt.plot(timesteps, train_logs['source_acc'], 'r-', train_logs['target_acc'], 'b-', train_logs['dc_acc'], 'g-')
+    plt.legend(["LP-source", "LP-target", "DC"])
+    plt.ylabel('Average accuracy')
+    plt.xlabel('Epochs')
+    plt.title('Training accuracy')
+    plt.grid(True)
+    plt.savefig(os.path.join(path_to_log, "train_acc.png"))
+
+    # Plot validation losses
+    plt.figure()
+    plt.plot(timesteps, val_logs['lp_loss'], 'r-', val_logs['dc_loss'], 'b-', val_logs['total_loss'], 'g-')
+    plt.legend(["LP", "DC", "Total"])
+    plt.ylabel('Loss')
+    plt.xlabel('Epochs')
+    plt.title('Validation loss')
+    plt.grid(True)
+    plt.savefig(os.path.join(path_to_log, "val_loss.png"))
+
+    # Plot validation accuracies
+    plt.figure()
+    plt.plot(timesteps, val_logs['source_acc'], 'r-', val_logs['target_acc'], 'b-', val_logs['dc_acc'], 'g-')
+    plt.legend(["LP-source", "LP-target", "DC"])
+    plt.ylabel('Average accuracy')
+    plt.xlabel('Epochs')
+    plt.title('Validation accuracy')
+    plt.grid(True)
+    plt.savefig(os.path.join(path_to_log, "val_acc.png"))
+
     
 def plot_confusion_matrix(real_labels, pred_labels, classes, output_path, normalize=True, name="confusion.png"):
     """
@@ -165,7 +193,7 @@ def plot_pr_curve(pred_probabilities, true_labels, output_path, classes, name="p
     """
 
     # Precision-recall figure
-    plt.figure(figsize=(10, 5))
+    plt.figure()
     plt.title('Precision-recall curve')
     plt.xlabel('Recall')
     plt.ylabel('Precision')

@@ -38,14 +38,13 @@ class DataLoader:
                 .
                 class_n
 
-    :param data_dir: path to the root directory to read data from (train, val, test).
+    :param data_dir: path to data (train, val, test).
     :param model_dir: path where model weights and logs are saved.
-    :param output_dim: output dimension of the label predictor.
+    :param output_dim: output dimension of the label predictor (number of classes).
     :param img_mode: one of `"rgb"`, `"grayscale"`. Color model to read images.
-    :param is_train: whether training data or other.
+    :param is_train: whether training data.
     :param target_size: tuple of integers. Dimensions to resize input images to.
     """
-
     def __init__(self, data_dir, model_dir, output_dim, img_mode, target_size=(224, 224), is_train=False):
         self.data_dir = data_dir
         self.model_dir = model_dir
@@ -108,7 +107,7 @@ class DataLoader:
             for cat_id, category in enumerate(categories):
                 cat_path = os.path.join(data_dir, domain, category)
                 if os.path.isdir(cat_path):
-                    self._decode_experiment_dir(cat_path, domain == 'source', cat_id, compute_mean)
+                    self._decode_experiment_dir(cat_path, cat_id, domain == 'source', compute_mean)
 
         # Check if some source or target dataset is empty
         if self.num_source == 0:
@@ -130,18 +129,15 @@ class DataLoader:
                                                                                             self.num_target,
                                                                                             self.output_dim))
 
-    def _recursive_list(self, subpath):
-        return sorted(os.walk(subpath), key=lambda tpl: tpl[0])
-
     def _decode_experiment_dir(self, cat_path, category_id, source, compute_mean):
         """
         Extract valid filenames and corresponding ground truth from every class/category.
         :param cat_path: path to class folder to be decoded.
         :param category_id: int, class identifier.
         :param source: boolean, whether domain is source.
-        :param is_train: boolean, whether data is for training.
+        :param compute_mean: boolean, whether computing pixel mean value.
         """
-        for root, _, files in self._recursive_list(cat_path):
+        for root, _, files in sorted(os.walk(cat_path)):
             for frame_number, fname in enumerate(files):
                 is_valid = False
                 for extension in self.formats:
@@ -184,11 +180,11 @@ class DataLoader:
 def batch_generator(data, output_dim, batch_size, shuffle=True):
     """
     Generate batches of data.
-    Given a list of numpy data, it iterates over the list and returns batches of the same size.
+    Given a list of indices pointing to data, it iterates over the list and returns batches of the same size.
     :param data: a DataLoader instance.
-    :param output_dim:
-    :param batch_size: size of each domain
-    :param shuffle: Whether shuffle data.
+    :param output_dim: output dimension of the label predictor (number of classes).
+    :param batch_size: half of batch size (for each domain).
+    :param shuffle: Whether shuffling data.
     """
     if data.img_mode == 'rgb':
         image_shape = data.target_size + (3,)
@@ -256,15 +252,11 @@ def batch_generator(data, output_dim, batch_size, shuffle=True):
 
 def load_img(path, grayscale=False, target_size=None):
     """
-    Load an image.
-
-    # Arguments
-        path: Path to image file.
-        grayscale: Boolean, whether to load the image as grayscale.
-        target_size: Either `None` (default to original size) or tuple of ints `(img_height, img_width)`.
-
-    # Returns
-        Image as numpy array.
+    Load an image applying target color space and size
+    :param path: path to image file.
+    :param grayscale: boolean, whether loading the image as grayscale.
+    :param target_size: either 'None' (default to original size) or tuple of ints '(img_height, img_width)'.
+    :return: image as numpy array.
     """
     # Read input image
     img = cv2.imread(path)
@@ -288,7 +280,7 @@ def load_img(path, grayscale=False, target_size=None):
 def normalize_image(img, pixel_mean):
     """
     Normalize current image by subtracting the mean.
-    :param img: image to be normalized.
+    :param img: image to be normalized as numpy array.
     :param pixel_mean: mean pixel value.
     :return: normalized image as numpy array
     """
